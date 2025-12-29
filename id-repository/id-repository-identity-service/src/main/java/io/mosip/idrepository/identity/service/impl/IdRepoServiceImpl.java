@@ -67,6 +67,7 @@ import io.mosip.idrepository.identity.helper.AnonymousProfileHelper;
 import io.mosip.idrepository.identity.helper.IdRepoServiceHelper;
 import io.mosip.idrepository.identity.helper.ObjectStoreHelper;
 import io.mosip.idrepository.identity.repository.*;
+import io.mosip.idrepository.identity.helper.UidGeneratorHelper;
 import io.mosip.kernel.biometrics.constant.BiometricType;
 import io.mosip.kernel.biometrics.entities.BIR;
 import io.mosip.kernel.biometrics.spi.CbeffUtil;
@@ -184,6 +185,9 @@ public class IdRepoServiceImpl implements IdRepoService<IdRequestDTO, Uin> {
 	@Autowired
 	private IdRepoServiceHelper idRepoServiceHelper;
 
+	@Autowired
+	private UidGeneratorHelper uidGeneratorHelper;
+
 	@Value("${" + UIN_REFID + "}")
 	private String uinRefId;
 	
@@ -201,6 +205,17 @@ public class IdRepoServiceImpl implements IdRepoService<IdRequestDTO, Uin> {
 				.toString();
 		ObjectNode identityObject = mapper.convertValue(request.getRequest().getIdentity(), ObjectNode.class);
 		identityObject.putPOJO(VERIFIED_ATTRIBUTES, request.getRequest().getVerifiedAttributes());
+		// Check if UID generation is needed
+		if (identityObject.get("UIDGenerationNeeded") != null
+				&& identityObject.get("UIDGenerationNeeded").asBoolean()) {
+			// Generate unique UID using Luhn Algorithm
+			String generatedUID = uidGeneratorHelper.generateUniqueUid();
+			// Add UID to identity object
+			identityObject.put("UID", generatedUID);
+			request.getRequest().setIdentity(identityObject);
+			mosipLogger.info(IdRepoSecurityManager.getUser(), ID_REPO_SERVICE_IMPL, ADD_IDENTITY,
+					"Generated UID for Myanmar: " + generatedUID);
+		}
 		byte[] identityInfo = convertToBytes(identityObject);
 		String uinHash = getUinHash(uin);
 		String uinHashWithSalt = uinHash.split(SPLITTER)[1];
