@@ -66,6 +66,7 @@ import io.mosip.idrepository.core.exception.RestServiceException;
 import io.mosip.idrepository.core.helper.RestHelper;
 import io.mosip.idrepository.core.logger.IdRepoLogger;
 import io.mosip.idrepository.core.security.IdRepoSecurityManager;
+import io.mosip.idrepository.identity.helper.UidGeneratorHelper;
 import io.mosip.idrepository.core.spi.IdRepoDraftService;
 import io.mosip.idrepository.core.util.DataValidationUtil;
 import io.mosip.idrepository.identity.entity.Uin;
@@ -112,6 +113,8 @@ public class IdRepoDraftServiceImpl extends IdRepoServiceImpl implements IdRepoD
 	private static final String CREATE_DRAFT = "createDraft";
 
 	private static final String ID_REPO_DRAFT_SERVICE_IMPL = "IdRepoDraftServiceImpl";
+	
+	private static final String UID = "UID";
 
 	private static final Logger idrepoDraftLogger = IdRepoLogger.getLogger(IdRepoDraftServiceImpl.class);
 
@@ -141,6 +144,9 @@ public class IdRepoDraftServiceImpl extends IdRepoServiceImpl implements IdRepoD
 	
 	@Autowired
 	private IdRepoProxyServiceImpl proxyService;
+
+	@Autowired
+	private UidGeneratorHelper uidGeneratorHelper;
 	
 	@Autowired
 	private VidDraftHelper vidDraftHelper;
@@ -231,6 +237,25 @@ public class IdRepoDraftServiceImpl extends IdRepoServiceImpl implements IdRepoD
 				if (Objects.isNull(draftToUpdate.getUinData())) {
 					ObjectNode identityObject = mapper.convertValue(request.getRequest().getIdentity(), ObjectNode.class);
 					identityObject.putPOJO(VERIFIED_ATTRIBUTES, request.getRequest().getVerifiedAttributes());
+					
+					ObjectNode identityObject1 = mapper.convertValue(request.getRequest().getIdentity(), ObjectNode.class);
+
+					// Check if UID already exists
+					if (!identityObject1.has(UID) || identityObject1.get(UID).isNull() || StringUtils.isEmpty(identityObject1.get(UID).asText())) {
+						// Check if UID generation is needed
+						// Generate unique UID using Luhn Algorithm
+						String generatedUID = uidGeneratorHelper.generateUniqueUid();
+						// Add UID to identity object
+						identityObject1.put(UID, generatedUID);
+						idrepoDraftLogger.info(IdRepoSecurityManager.getUser(), ID_REPO_DRAFT_SERVICE_IMPL, UPDATE_DRAFT,
+								"Generated UID : " + generatedUID);
+					} else {
+						// UID already exists
+						String existingUID = identityObject1.get(UID).asText();
+						idrepoDraftLogger.info(IdRepoSecurityManager.getUser(), ID_REPO_DRAFT_SERVICE_IMPL, UPDATE_DRAFT,
+								"Using existing UID : " + existingUID);
+					}
+
 					byte[] uinData = super.convertToBytes(request.getRequest().getIdentity());
 					draftToUpdate.setUinData(uinData);
 					draftToUpdate.setUinDataHash(securityManager.hash(uinData));
@@ -264,7 +289,36 @@ public class IdRepoDraftServiceImpl extends IdRepoServiceImpl implements IdRepoD
 			RequestDTO requestDTO = request.getRequest();
 			Configuration configuration = Configuration.builder().jsonProvider(new JacksonJsonProvider())
 					.mappingProvider(new JacksonMappingProvider()).build();
-			DocumentContext inputData = JsonPath.using(configuration).parse(requestDTO.getIdentity());
+
+			/* Update request object */
+			ObjectNode identityObject = mapper.convertValue(requestDTO.getIdentity(), ObjectNode.class);
+
+			// Check if UID generation is needed
+			if (!identityObject.has(UID) || identityObject.get(UID).isNull() || StringUtils.isEmpty(identityObject.get(UID).asText())) {
+				// Check if UID generation is needed
+				// Generate unique UID using Luhn Algorithm
+				String generatedUID = uidGeneratorHelper.generateUniqueUid();
+				// Add UID to identity object
+				identityObject.put(UID, generatedUID);
+				idrepoDraftLogger.info(IdRepoSecurityManager.getUser(), ID_REPO_DRAFT_SERVICE_IMPL, "updateDemographicData",
+						"Generated UID : " + generatedUID);
+			} else {
+				// UID already exists
+				String existingUID = identityObject.get(UID).asText();
+				idrepoDraftLogger.info(IdRepoSecurityManager.getUser(), ID_REPO_DRAFT_SERVICE_IMPL, "updateDemographicData",
+						"Using existing UID : " + existingUID);
+			}
+
+			String updatedIdentityObj = null;
+			try {
+				updatedIdentityObj = mapper.writeValueAsString(identityObject);
+			} catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+				idrepoDraftLogger.error(IdRepoSecurityManager.getUser(), ID_REPO_DRAFT_SERVICE_IMPL, "updateDemographicData", e.getMessage());
+				throw new IdRepoAppException(UNKNOWN_ERROR, e);
+			}
+
+			// DocumentContext inputData = JsonPath.using(configuration).parse(requestDTO.getIdentity());
+			DocumentContext inputData = JsonPath.using(configuration).parse(updatedIdentityObj);
 			DocumentContext dbData = JsonPath.using(configuration).parse(new String(draftToUpdate.getUinData()));
 			JsonPath uinJsonPath = JsonPath.compile(uinPath.replace(ROOT_PATH, "$"));
 			inputData.set(uinJsonPath, dbData.read(uinJsonPath));

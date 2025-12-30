@@ -205,16 +205,19 @@ public class IdRepoServiceImpl implements IdRepoService<IdRequestDTO, Uin> {
 				.toString();
 		ObjectNode identityObject = mapper.convertValue(request.getRequest().getIdentity(), ObjectNode.class);
 		identityObject.putPOJO(VERIFIED_ATTRIBUTES, request.getRequest().getVerifiedAttributes());
-		// Check if UID generation is needed
-		if (identityObject.get("UIDGenerationNeeded") != null
-				&& identityObject.get("UIDGenerationNeeded").asBoolean()) {
+		if (!identityObject.has("UID") || identityObject.get("UID").isNull() || StringUtils.isEmpty(identityObject.get("UID").asText())) {
 			// Generate unique UID using Luhn Algorithm
 			String generatedUID = uidGeneratorHelper.generateUniqueUid();
 			// Add UID to identity object
 			identityObject.put("UID", generatedUID);
 			request.getRequest().setIdentity(identityObject);
 			mosipLogger.info(IdRepoSecurityManager.getUser(), ID_REPO_SERVICE_IMPL, ADD_IDENTITY,
-					"Generated UID for Myanmar: " + generatedUID);
+					"Generated UID : " + generatedUID);
+		} else {
+			// UID already exists
+			String existingUID = identityObject.get("UID").asText();
+			mosipLogger.info(IdRepoSecurityManager.getUser(), ID_REPO_SERVICE_IMPL, ADD_IDENTITY,
+					"Using existing UID : " + existingUID);
 		}
 		byte[] identityInfo = convertToBytes(identityObject);
 		String uinHash = getUinHash(uin);

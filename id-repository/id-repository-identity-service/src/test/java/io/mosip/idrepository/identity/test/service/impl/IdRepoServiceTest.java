@@ -3,6 +3,8 @@ package io.mosip.idrepository.identity.test.service.impl;
 import static io.mosip.idrepository.core.constant.IdRepoErrorConstants.INVALID_INPUT_PARAMETER;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -48,6 +50,7 @@ import org.springframework.web.context.WebApplicationContext;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
+import io.mosip.idrepository.identity.helper.UidGeneratorHelper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.Lists;
@@ -196,6 +199,9 @@ public class IdRepoServiceTest {
 
 	@Mock
 	private IdRepoServiceHelper idRepoServiceHelper;
+
+	@Mock
+	private UidGeneratorHelper uidGeneratorHelper;
 
 	/** The id. */
 	private Map<String, String> id;
@@ -2130,5 +2136,161 @@ public class IdRepoServiceTest {
 		Uin updatedIdentity = service.updateIdentity(request, "234");
 		List<String> verifiedAttributes = (List<String>) mapper.readValue(updatedIdentity.getUinData(), Map.class).get("verifiedAttributes");
 		assertEquals(List.of("a", "b"), verifiedAttributes);
+	}
+	
+	@Test
+	public void testAddIdentityWithUidGeneration() throws IdRepoAppException, JsonParseException, JsonMappingException, IOException {
+		when(uinDraftRepo.existsByRegId(Mockito.any())).thenReturn(false);
+		Uin uinObj = new Uin();
+		uinObj.setUin("1234");
+		uinObj.setUinRefId("1234");
+		uinObj.setStatusCode(ACTIVATED);
+
+		// Create identity object without UID (simulating new identity creation)
+		ObjectNode identityObj = mapper.createObjectNode();
+		identityObj.put("firstName", "John");
+		identityObj.put("lastName", "Doe");
+
+		RequestDTO req = new RequestDTO();
+		req.setIdentity(identityObj);
+		req.setRegistrationId("27841457360002620190730095024");
+		request.setRequest(req);
+
+		uinObj.setUinData("".getBytes());
+		when(uinRepo.existsByUinHash(Mockito.any())).thenReturn(false);
+		when(uinRepo.existsByRegId(Mockito.any())).thenReturn(false);
+		when(uinRepo.findByUinHash(Mockito.any())).thenReturn(Optional.of(uinObj));
+		when(uinRepo.save(Mockito.any())).thenReturn(uinObj);
+		when(uinEncryptSaltRepo.retrieveSaltById(Mockito.anyInt())).thenReturn("7C9JlRD32RnFTzAmeTfIzg");
+		when(uinHashSaltRepo.retrieveSaltById(Mockito.anyInt())).thenReturn("AG7JQI1HwFp_cI_DcdAQ9A");
+
+		// Mock UID generation
+		when(uidGeneratorHelper.generateUniqueUid()).thenReturn("1234567890");
+
+		// Execute the test
+		IdResponseDTO addIdentity = proxyService.addIdentity(request, "1234");
+
+		// Verify UID generation was called
+		verify(uidGeneratorHelper).generateUniqueUid();
+
+		// Verify response
+		assertEquals(ACTIVATED, addIdentity.getResponse().getStatus());
+	}
+
+	@Test
+	public void testAddIdentityWithExistingUid() throws IdRepoAppException, JsonParseException, JsonMappingException, IOException {
+		when(uinDraftRepo.existsByRegId(Mockito.any())).thenReturn(false);
+		Uin uinObj = new Uin();
+		uinObj.setUin("1234");
+		uinObj.setUinRefId("1234");
+		uinObj.setStatusCode(ACTIVATED);
+
+		// Create identity object with existing UID
+		ObjectNode identityObj = mapper.createObjectNode();
+		identityObj.put("firstName", "John");
+		identityObj.put("lastName", "Doe");
+		identityObj.put("UID", "1234567890"); // Existing UID
+
+		RequestDTO req = new RequestDTO();
+		req.setIdentity(identityObj);
+		req.setRegistrationId("27841457360002620190730095024");
+		request.setRequest(req);
+
+		uinObj.setUinData("".getBytes());
+		when(uinRepo.existsByUinHash(Mockito.any())).thenReturn(false);
+		when(uinRepo.existsByRegId(Mockito.any())).thenReturn(false);
+		when(uinRepo.findByUinHash(Mockito.any())).thenReturn(Optional.of(uinObj));
+		when(uinRepo.save(Mockito.any())).thenReturn(uinObj);
+		when(uinEncryptSaltRepo.retrieveSaltById(Mockito.anyInt())).thenReturn("7C9JlRD32RnFTzAmeTfIzg");
+		when(uinHashSaltRepo.retrieveSaltById(Mockito.anyInt())).thenReturn("AG7JQI1HwFp_cI_DcdAQ9A");
+
+		// Execute the test
+		IdResponseDTO addIdentity = proxyService.addIdentity(request, "1234");
+
+		// Verify UID generation was NOT called since UID already exists
+		verify(uidGeneratorHelper, Mockito.never()).generateUniqueUid();
+
+		// Verify response
+		assertEquals(ACTIVATED, addIdentity.getResponse().getStatus());
+	}
+
+	@Test
+	public void testAddIdentityWithNullUid() throws IdRepoAppException, JsonParseException, JsonMappingException, IOException {
+		when(uinDraftRepo.existsByRegId(Mockito.any())).thenReturn(false);
+		Uin uinObj = new Uin();
+		uinObj.setUin("1234");
+		uinObj.setUinRefId("1234");
+		uinObj.setStatusCode(ACTIVATED);
+
+		// Create identity object with null UID
+		ObjectNode identityObj = mapper.createObjectNode();
+		identityObj.put("firstName", "John");
+		identityObj.put("lastName", "Doe");
+		identityObj.putNull("UID"); // Null UID field
+
+		RequestDTO req = new RequestDTO();
+		req.setIdentity(identityObj);
+		req.setRegistrationId("27841457360002620190730095024");
+		request.setRequest(req);
+
+		uinObj.setUinData("".getBytes());
+		when(uinRepo.existsByUinHash(Mockito.any())).thenReturn(false);
+		when(uinRepo.existsByRegId(Mockito.any())).thenReturn(false);
+		when(uinRepo.findByUinHash(Mockito.any())).thenReturn(Optional.of(uinObj));
+		when(uinRepo.save(Mockito.any())).thenReturn(uinObj);
+		when(uinEncryptSaltRepo.retrieveSaltById(Mockito.anyInt())).thenReturn("7C9JlRD32RnFTzAmeTfIzg");
+		when(uinHashSaltRepo.retrieveSaltById(Mockito.anyInt())).thenReturn("AG7JQI1HwFp_cI_DcdAQ9A");
+
+		// Mock UID generation
+		when(uidGeneratorHelper.generateUniqueUid()).thenReturn("1234567890");
+
+		// Execute the test
+		IdResponseDTO addIdentity = proxyService.addIdentity(request, "1234");
+
+		// Verify UID generation was called for null field
+		verify(uidGeneratorHelper).generateUniqueUid();
+
+		// Verify response
+		assertEquals(ACTIVATED, addIdentity.getResponse().getStatus());
+	}
+
+	@Test
+	public void testAddIdentityWithEmptyUid() throws IdRepoAppException, JsonParseException, JsonMappingException, IOException {
+		when(uinDraftRepo.existsByRegId(Mockito.any())).thenReturn(false);
+		Uin uinObj = new Uin();
+		uinObj.setUin("1234");
+		uinObj.setUinRefId("1234");
+		uinObj.setStatusCode(ACTIVATED);
+
+		// Create identity object with empty UID
+		ObjectNode identityObj = mapper.createObjectNode();
+		identityObj.put("firstName", "John");
+		identityObj.put("lastName", "Doe");
+		identityObj.put("UID", ""); // Empty UID field
+
+		RequestDTO req = new RequestDTO();
+		req.setIdentity(identityObj);
+		req.setRegistrationId("27841457360002620190730095024");
+		request.setRequest(req);
+
+		uinObj.setUinData("".getBytes());
+		when(uinRepo.existsByUinHash(Mockito.any())).thenReturn(false);
+		when(uinRepo.existsByRegId(Mockito.any())).thenReturn(false);
+		when(uinRepo.findByUinHash(Mockito.any())).thenReturn(Optional.of(uinObj));
+		when(uinRepo.save(Mockito.any())).thenReturn(uinObj);
+		when(uinEncryptSaltRepo.retrieveSaltById(Mockito.anyInt())).thenReturn("7C9JlRD32RnFTzAmeTfIzg");
+		when(uinHashSaltRepo.retrieveSaltById(Mockito.anyInt())).thenReturn("AG7JQI1HwFp_cI_DcdAQ9A");
+
+		// Mock UID generation
+		when(uidGeneratorHelper.generateUniqueUid()).thenReturn("1234567890");
+
+		// Execute the test
+		IdResponseDTO addIdentity = proxyService.addIdentity(request, "1234");
+
+		// Verify UID generation was called for empty field
+		verify(uidGeneratorHelper).generateUniqueUid();
+
+		// Verify response
+		assertEquals(ACTIVATED, addIdentity.getResponse().getStatus());
 	}
 }

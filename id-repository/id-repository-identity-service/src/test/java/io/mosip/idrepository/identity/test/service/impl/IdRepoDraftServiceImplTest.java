@@ -13,7 +13,9 @@ import static org.junit.Assert.assertSame;
 import static org.mockito.ArgumentMatchers.notNull;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -77,6 +79,7 @@ import io.mosip.idrepository.core.exception.RestServiceException;
 import io.mosip.idrepository.core.helper.AuditHelper;
 import io.mosip.idrepository.core.helper.RestHelper;
 import io.mosip.idrepository.core.repository.CredentialRequestStatusRepo;
+import io.mosip.idrepository.identity.helper.UidGeneratorHelper;
 import io.mosip.idrepository.core.repository.UinEncryptSaltRepo;
 import io.mosip.idrepository.core.repository.UinHashSaltRepo;
 import io.mosip.idrepository.core.security.IdRepoSecurityManager;
@@ -211,6 +214,9 @@ public class IdRepoDraftServiceImplTest {
 	
 	@Mock
 	private CryptoUtil cryptoUtil;
+
+	@Mock
+	private UidGeneratorHelper uidGeneratorHelper;
 
 	/** The id. */
 	private Map<String, String> id;
@@ -945,5 +951,126 @@ public class IdRepoDraftServiceImplTest {
 		listdocs.add(document);
 		uin.setDocuments(listdocs);
 		ReflectionTestUtils.invokeMethod(idRepoServiceImpl, "updateBiometricAndDocumentDrafts","123456890",draft,uin);
+	}
+
+	@Test
+	public void testUpdateDraftWithUidGeneration() throws Exception {
+		when(uinDraftRepo.findByRegId(Mockito.any())).thenReturn(Optional.of(getUinDraft()));
+		when(uinDraftRepo.save(Mockito.any())).thenReturn(getUinDraft());
+
+		// Create request with identity object without UID but with proper structure
+		ObjectNode identityWrapper = mapper.createObjectNode();
+		ObjectNode identityObj = mapper.createObjectNode();
+		identityObj.put("UIN", "1234"); // Include UIN as expected by the method
+		identityObj.put("firstName", "John");
+		identityObj.put("lastName", "Doe");
+		identityWrapper.set("identity", identityObj);
+
+		RequestDTO req = new RequestDTO();
+		req.setIdentity(identityWrapper);
+		req.setRegistrationId("27841457360002620190730095024");
+		IdRequestDTO request = new IdRequestDTO();
+		request.setRequest(req);
+
+		// Mock UID generation
+		when(uidGeneratorHelper.generateUniqueUid()).thenReturn("1234567890");
+
+		// Execute update draft
+		IdResponseDTO response = idRepoServiceImpl.updateDraft("27841457360002620190730095024", request);
+
+		// Verify response
+		assertEquals("DRAFTED", response.getResponse().getStatus());
+
+		// Verify UID generation was called
+		verify(uidGeneratorHelper).generateUniqueUid();
+	}
+
+	@Test
+	public void testUpdateDraftWithExistingUid() throws Exception {
+		when(uinDraftRepo.findByRegId(Mockito.any())).thenReturn(Optional.of(getUinDraft()));
+		when(uinDraftRepo.save(Mockito.any())).thenReturn(getUinDraft());
+
+		ObjectNode identityObj = mapper.createObjectNode();
+		identityObj.put("UIN", "1234");
+		identityObj.put("UID", "1234567890");
+
+		RequestDTO req = new RequestDTO();
+		// FIX: Set identityObj directly
+		req.setIdentity(identityObj);
+		req.setRegistrationId("27841457360002620190730095024");
+
+		IdRequestDTO request = new IdRequestDTO();
+		request.setRequest(req);
+
+		IdResponseDTO response = idRepoServiceImpl.updateDraft("27841457360002620190730095024", request);
+
+		assertEquals("DRAFTED", response.getResponse().getStatus());
+		verify(uidGeneratorHelper, Mockito.never()).generateUniqueUid();
+	}
+
+	@Test
+	public void testUpdateDemographicDataWithUidGeneration() throws Exception {
+		UinDraft draft = getUinDraft();
+
+		// Create request with identity object without UID but with proper structure
+		ObjectNode identityWrapper = mapper.createObjectNode();
+		ObjectNode identityObj = mapper.createObjectNode();
+		identityObj.put("UIN", "1212332134"); // Include UIN as expected by the method
+		identityObj.put("firstName", "John");
+		identityObj.put("lastName", "Doe");
+		identityWrapper.set("identity", identityObj);
+
+		RequestDTO req = new RequestDTO();
+		req.setIdentity(identityWrapper);
+		IdRequestDTO request = new IdRequestDTO();
+		request.setRequest(req);
+
+		// Mock UID generation
+		when(uidGeneratorHelper.generateUniqueUid()).thenReturn("1234567890");
+
+		// Execute updateDemographicData
+		ReflectionTestUtils.invokeMethod(idRepoServiceImpl, "updateDemographicData", request, draft);
+
+		// Verify UID generation was called
+		verify(uidGeneratorHelper).generateUniqueUid();
+	}
+
+	@Test
+	public void testUpdateDemographicDataWithExistingUid() throws Exception {
+		UinDraft draft = getUinDraft();
+
+		ObjectNode identityObj = mapper.createObjectNode();
+		identityObj.put("UIN", "1234");
+		identityObj.put("firstName", "John");
+		identityObj.put("lastName", "Doe");
+		identityObj.put("UID", "1234567890");
+
+		RequestDTO req = new RequestDTO();
+		// FIX: Pass identityObj directly, do not use identityWrapper
+		req.setIdentity(identityObj);
+
+		IdRequestDTO request = new IdRequestDTO();
+		request.setRequest(req);
+
+		ReflectionTestUtils.invokeMethod(idRepoServiceImpl, "updateDemographicData", request, draft);
+
+		verify(uidGeneratorHelper, Mockito.never()).generateUniqueUid();
+	}
+
+	private UinDraft getUinDraft() {
+		UinDraft draft = new UinDraft();
+		draft.setRegId("27841457360002620190730095024");
+		draft.setUin("1234");
+		draft.setUinHash("1_hash");
+		draft.setStatusCode("DRAFT");
+		// Include proper identity structure with UIN
+		draft.setUinData("{\"UIN\":\"1234\",\"firstName\":\"John\"}".getBytes());
+		return draft;
+	}
+
+	private io.mosip.idrepository.core.entity.UinEncryptSalt getSaltEntity() {
+		io.mosip.idrepository.core.entity.UinEncryptSalt salt = new io.mosip.idrepository.core.entity.UinEncryptSalt();
+		salt.setSalt("7C9JlRD32RnFTzAmeTfIzg");
+		return salt;
 	}
 }
