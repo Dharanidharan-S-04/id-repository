@@ -137,4 +137,5 @@ public class UidGeneratorHelperTest {
         String invalidUid = "1234567898"; // Wrong checksum
         assertFalse("Invalid UID should fail validation", uidGeneratorHelper.validateUidWithLuhn(invalidUid));
     }
+    
 }
