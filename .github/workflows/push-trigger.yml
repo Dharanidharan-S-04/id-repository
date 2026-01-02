@@ -14,12 +14,7 @@ on:
         type: string
   push:
     branches:
-      - '!release-branch'
-      - release*
-      - master
-      - 1.*
-      - develop
-      - MOSIP*
+      - mos
 
 jobs:
   build-maven-id-repository:
