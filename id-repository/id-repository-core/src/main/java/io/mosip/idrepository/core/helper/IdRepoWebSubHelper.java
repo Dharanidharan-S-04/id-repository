@@ -27,6 +27,7 @@ import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.AsyncResult;
 import org.springframework.stereotype.Component;
+import org.springframework.scheduling.annotation.Scheduled;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -260,5 +261,12 @@ public class IdRepoWebSubHelper {
 	
 	public <U> void publishEvent(String eventTopic, U eventModel) {
 		publisher.publishUpdate(eventTopic, eventModel, MediaType.APPLICATION_JSON_VALUE, null, publisherURL);
+	}
+
+	@Scheduled(fixedDelayString = "${idrepo-websub-resubscription-delay-millisecs}", initialDelayString = "${mosip.event.delay-millisecs}")
+	public void initSubsriptions() {
+		mosipLogger.info("Initializing subscribptions... {} {}", this.getClass().getSimpleName(), "initSubsriptions");
+		tryRegisteringTopic(vidEventTopic);
+		subscribeForVidEvent();
 	}
 }
