@@ -103,6 +103,8 @@ public class IdRepoServiceImpl implements IdRepoService<IdRequestDTO, Uin> {
 
 	private static final String ADD_IDENTITY_HANDLE = "addIdentityHandle";
 
+	private static final String CHECK_AND_GET_HANDLES = "checkAndGetHandles";
+
 	/** The mosip logger. */
 	Logger mosipLogger = IdRepoLogger.getLogger(IdRepoServiceImpl.class);
 
@@ -805,6 +807,8 @@ public class IdRepoServiceImpl implements IdRepoService<IdRequestDTO, Uin> {
 
 	private Map<String, HandleDto> checkAndGetHandles(IdRequestDTO request) throws IdRepoAppException {
 		Map<String, HandleDto> handles = idRepoServiceHelper.getSelectedHandles(request.getRequest());
+		mosipLogger.info(IdRepoSecurityManager.getUser(), ID_REPO_SERVICE_IMPL, CHECK_AND_GET_HANDLES,
+				"Handles extracted from request: " + (handles != null ? handles.size() : 0) + " handles found");
 		if(handles != null && !handles.isEmpty()) {
 			List<String> duplicateHandles = handles.keySet()
 					.stream()
@@ -820,6 +824,8 @@ public class IdRepoServiceImpl implements IdRepoService<IdRequestDTO, Uin> {
 	}
 
 	private void addIdentityHandle(Uin uinEntity, Map<String, HandleDto> handles) {
+		mosipLogger.info(IdRepoSecurityManager.getUser(), ID_REPO_SERVICE_IMPL, ADD_IDENTITY_HANDLE,
+				"addIdentityHandle called with UIN: " + uinEntity.getUin() + ", handles count: " + (handles != null ? handles.size() : 0));
 		if (handles != null && !handles.isEmpty()) {
 			for (Entry<String, HandleDto> handleDtoEntry : handles.entrySet()) {
 				int saltId = securityManager.getSaltKeyForHashOfId(handleDtoEntry.getValue().getHandle());
@@ -834,7 +840,11 @@ public class IdRepoServiceImpl implements IdRepoService<IdRequestDTO, Uin> {
 				handleEntity.setUinHash(uinEntity.getUinHash());
 				handleEntity.setCreatedBy(IdRepoSecurityManager.getUser());
 				handleEntity.setCreatedDateTime(DateUtils.getUTCCurrentDateTime());
+				mosipLogger.info(IdRepoSecurityManager.getUser(), ID_REPO_SERVICE_IMPL, ADD_IDENTITY_HANDLE,
+						"About to save handle to database - Handle: " + handleDtoEntry.getKey() + ", HandleHash: " + handleDtoEntry.getValue().getHandleHash());
 				handleRepo.save(handleEntity);
+				mosipLogger.info(IdRepoSecurityManager.getUser(), ID_REPO_SERVICE_IMPL, ADD_IDENTITY_HANDLE,
+						"Handle record successfully saved in database - Handle: " + handleDtoEntry.getKey() + ", ID: " + handleEntity.getId());
 				mosipLogger.debug(IdRepoSecurityManager.getUser(), ID_REPO_SERVICE_IMPL, ADD_IDENTITY_HANDLE,
 						"Record successfully saved in db");
 			}
