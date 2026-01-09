@@ -415,9 +415,6 @@ public class CredentialServiceManager {
 		sendRequestToCredService(eventRequestsList, isUpdate, credentialRequestResponseConsumer);
 	}
 
-		sendRequestToCredService(eventRequestsList, isUpdate, credentialRequestResponseConsumer);
-	}
-
 	/**
 	 * Send vid events to cred service.
 	 *
