@@ -356,22 +356,30 @@ public class CredentialServiceManager {
 				 credentialRequestResponseConsumer,null);
 		
 	}
-	
+
 	public void sendUinEventsToCredService(String uin, LocalDateTime expiryTimestamp, boolean isUpdate,
 			List<VidInfoDTO> vidInfoDtos, List<HandleInfoDTO> handleList, List<String> partnerIds, IntFunction<String> saltRetreivalFunction,
 			BiConsumer<CredentialIssueRequestWrapperDto, Map<String, Object>> credentialRequestResponseConsumer,String requestId) {
+		mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getCanonicalName(), "sendUinEventsToCredService",
+				"Initiating credential events. UIN: " + uin + ", IsUpdate: " + isUpdate + ", RequestId: " + requestId);
 		List<CredentialIssueRequestDto> eventRequestsList = new ArrayList<>();
 
 		eventRequestsList.addAll(partnerIds.stream().map(partnerId -> {
+			mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getCanonicalName(), "sendUinEventsToCredService",
+					"Preparing UIN event for Partner: " + partnerId);
 			String token = tokenIDGenerator.generateTokenID(uin, partnerId);
 			return createCredReqDto(uin, partnerId, expiryTimestamp, null, token,
 					securityManager.getIdHashAndAttributesWithSaltModuloByPlainIdHash(uin, saltRetreivalFunction), requestId);
 		}).collect(Collectors.toList()));
 
 		if (vidInfoDtos != null) {
+			mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getCanonicalName(), "sendUinEventsToCredService",
+					"Processing " + vidInfoDtos.size() + " VIDs");
 			List<CredentialIssueRequestDto> vidRequests = vidInfoDtos.stream().flatMap(vidInfoDTO -> {
 				LocalDateTime vidExpiryTime = Objects.isNull(expiryTimestamp) ? vidInfoDTO.getExpiryTimestamp() : expiryTimestamp;
 				return partnerIds.stream().map(partnerId -> {
+					mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getCanonicalName(), "sendUinEventsToCredService",
+							"Preparing VID event for VID: " + vidInfoDTO.getVid() + ", Partner: " + partnerId);
 					String token = tokenIDGenerator.generateTokenID(uin, partnerId);
 					return createCredReqDto(vidInfoDTO.getVid(), partnerId, vidExpiryTime, vidInfoDTO.getTransactionLimit(),
 							token, vidInfoDTO.getHashAttributes());
@@ -381,7 +389,9 @@ public class CredentialServiceManager {
 		}
 
 		if(handleList != null && !handleList.isEmpty()) {
-			mosipLogger.debug(IdRepoSecurityManager.getUser(), this.getClass().getCanonicalName(), "sendUinEventsToCredService",
+			mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getCanonicalName(), "sendUinEventsToCredService",
+					"Processing " + handleList.size() + " Handles for " + partnerIds.size() + " partners");
+			mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getCanonicalName(), "sendUinEventsToCredService",
 					"Number of handles identified >> " + handleList.size());
 			List<CredentialIssueRequestDto> handleRequests = handleList.stream().flatMap(handleInfoDTO -> {
 				return partnerIds.stream().map(partnerId -> {
@@ -389,6 +399,10 @@ public class CredentialServiceManager {
 					//Given requestId and the handle value is hashed together to generate a unique requestId for handle credential.
 					//Credential issuance status check systems should generate the handle requestId in the same way to get latest issuance status.
 					String handleRequestId = requestId.concat(handleInfoDTO.getHandle());
+					String hashedHandleRequestId = securityManager.hash(handleRequestId.getBytes(StandardCharsets.UTF_8));
+					mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getCanonicalName(), "sendUinEventsToCredService",
+							String.format("Preparing Handle event - Handle: %s, Partner: %s, RawHandleReqId: %s, HashedHandleReqId: %s",
+									handleInfoDTO.getHandle(), partnerId, handleRequestId, hashedHandleRequestId));
 					return createCredReqDto(handleInfoDTO.getHandle(), partnerId, null, null,
 							token, handleInfoDTO.getAdditionalData(),
 							securityManager.hash(handleRequestId.getBytes(StandardCharsets.UTF_8)));
@@ -396,6 +410,10 @@ public class CredentialServiceManager {
 			}).collect(Collectors.toList());
 			eventRequestsList.addAll(handleRequests);
 		}
+		mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getCanonicalName(), "sendUinEventsToCredService",
+				"Total credential events prepared to send: " + eventRequestsList.size());
+		sendRequestToCredService(eventRequestsList, isUpdate, credentialRequestResponseConsumer);
+	}
 
 		sendRequestToCredService(eventRequestsList, isUpdate, credentialRequestResponseConsumer);
 	}
