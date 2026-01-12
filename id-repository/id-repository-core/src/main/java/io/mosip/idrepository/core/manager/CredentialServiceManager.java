@@ -357,122 +357,61 @@ public class CredentialServiceManager {
 		
 	}
 
-	// public void sendUinEventsToCredService(String uin, LocalDateTime expiryTimestamp, boolean isUpdate,
-	// 		List<VidInfoDTO> vidInfoDtos, List<HandleInfoDTO> handleList, List<String> partnerIds, IntFunction<String> saltRetreivalFunction,
-	// 		BiConsumer<CredentialIssueRequestWrapperDto, Map<String, Object>> credentialRequestResponseConsumer,String requestId) {
-	// 	mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getCanonicalName(), "sendUinEventsToCredService",
-	// 			"Initiating credential events. UIN: " + uin + ", IsUpdate: " + isUpdate + ", RequestId: " + requestId);
-	// 	List<CredentialIssueRequestDto> eventRequestsList = new ArrayList<>();
-
-	// 	eventRequestsList.addAll(partnerIds.stream().map(partnerId -> {
-	// 		mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getCanonicalName(), "sendUinEventsToCredService",
-	// 				"Preparing UIN event for Partner: " + partnerId);
-	// 		String token = tokenIDGenerator.generateTokenID(uin, partnerId);
-	// 		return createCredReqDto(uin, partnerId, expiryTimestamp, null, token,
-	// 				securityManager.getIdHashAndAttributesWithSaltModuloByPlainIdHash(uin, saltRetreivalFunction), requestId);
-	// 	}).collect(Collectors.toList()));
-
-	// 	if (vidInfoDtos != null) {
-	// 		mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getCanonicalName(), "sendUinEventsToCredService",
-	// 				"Processing " + vidInfoDtos.size() + " VIDs");
-	// 		List<CredentialIssueRequestDto> vidRequests = vidInfoDtos.stream().flatMap(vidInfoDTO -> {
-	// 			LocalDateTime vidExpiryTime = Objects.isNull(expiryTimestamp) ? vidInfoDTO.getExpiryTimestamp() : expiryTimestamp;
-	// 			return partnerIds.stream().map(partnerId -> {
-	// 				mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getCanonicalName(), "sendUinEventsToCredService",
-	// 						"Preparing VID event for VID: " + vidInfoDTO.getVid() + ", Partner: " + partnerId);
-	// 				String token = tokenIDGenerator.generateTokenID(uin, partnerId);
-	// 				return createCredReqDto(vidInfoDTO.getVid(), partnerId, vidExpiryTime, vidInfoDTO.getTransactionLimit(),
-	// 						token, vidInfoDTO.getHashAttributes());
-	// 			});
-	// 		}).collect(Collectors.toList());
-	// 		eventRequestsList.addAll(vidRequests);
-	// 	}
-
-	// 	if(handleList != null && !handleList.isEmpty()) {
-	// 		mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getCanonicalName(), "sendUinEventsToCredService",
-	// 				"Processing " + handleList.size() + " Handles for " + partnerIds.size() + " partners");
-	// 		mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getCanonicalName(), "sendUinEventsToCredService",
-	// 				"Number of handles identified >> " + handleList.size());
-	// 		List<CredentialIssueRequestDto> handleRequests = handleList.stream().flatMap(handleInfoDTO -> {
-	// 			return partnerIds.stream().map(partnerId -> {
-	// 				String token = tokenIDGenerator.generateTokenID(uin, partnerId);
-	// 				//Given requestId and the handle value is hashed together to generate a unique requestId for handle credential.
-	// 				//Credential issuance status check systems should generate the handle requestId in the same way to get latest issuance status.
-	// 				String handleRequestId = requestId.concat(handleInfoDTO.getHandle());
-	// 				String hashedHandleRequestId = securityManager.hash(handleRequestId.getBytes(StandardCharsets.UTF_8));
-	// 				mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getCanonicalName(), "sendUinEventsToCredService",
-	// 						String.format("Preparing Handle event - Handle: %s, Partner: %s, RawHandleReqId: %s, HashedHandleReqId: %s",
-	// 								handleInfoDTO.getHandle(), partnerId, handleRequestId, hashedHandleRequestId));
-	// 				return createCredReqDto(handleInfoDTO.getHandle(), partnerId, null, null,
-	// 						token, handleInfoDTO.getAdditionalData(),
-	// 						securityManager.hash(handleRequestId.getBytes(StandardCharsets.UTF_8)));
-	// 			});
-	// 		}).collect(Collectors.toList());
-	// 		eventRequestsList.addAll(handleRequests);
-	// 	}
-	// 	mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getCanonicalName(), "sendUinEventsToCredService",
-	// 			"Total credential events prepared to send: " + eventRequestsList.size());
-	// 	sendRequestToCredService(eventRequestsList, isUpdate, credentialRequestResponseConsumer);
-	// }
 	public void sendUinEventsToCredService(String uin, LocalDateTime expiryTimestamp, boolean isUpdate,
-										   List<VidInfoDTO> vidInfoDtos, List<HandleInfoDTO> handleList, List<String> partnerIds, IntFunction<String> saltRetreivalFunction,
-										   BiConsumer<CredentialIssueRequestWrapperDto, Map<String, Object>> credentialRequestResponseConsumer, String requestId) {
-
+			List<VidInfoDTO> vidInfoDtos, List<HandleInfoDTO> handleList, List<String> partnerIds, IntFunction<String> saltRetreivalFunction,
+			BiConsumer<CredentialIssueRequestWrapperDto, Map<String, Object>> credentialRequestResponseConsumer,String requestId) {
 		mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getCanonicalName(), "sendUinEventsToCredService",
-				" [DEBUG-IDA] Starting event sync. UIN: " + uin + " | Base RequestId: " + requestId);
-
+				"Initiating credential events. UIN: " + uin + ", IsUpdate: " + isUpdate + ", RequestId: " + requestId);
 		List<CredentialIssueRequestDto> eventRequestsList = new ArrayList<>();
 
-		// 1. UIN Log - FIX: Using Object to avoid type mismatch error
-		for (String partnerId : partnerIds) {
-			String token = tokenIDGenerator.generateTokenID(uin, partnerId);
-
-			// Use Object here instead of Map to match the securityManager return type
-			Map<? extends String, ?> saltAttributes = securityManager.getIdHashAndAttributesWithSaltModuloByPlainIdHash(uin, saltRetreivalFunction);
-
+		eventRequestsList.addAll(partnerIds.stream().map(partnerId -> {
 			mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getCanonicalName(), "sendUinEventsToCredService",
-					" [DEBUG-IDA] UIN Request -> Partner: " + partnerId + ", ID: " + uin + ", HasSaltAttrs: " + (saltAttributes != null));
+					"Preparing UIN event for Partner: " + partnerId);
+			String token = tokenIDGenerator.generateTokenID(uin, partnerId);
+			return createCredReqDto(uin, partnerId, expiryTimestamp, null, token,
+					securityManager.getIdHashAndAttributesWithSaltModuloByPlainIdHash(uin, saltRetreivalFunction), requestId);
+		}).collect(Collectors.toList()));
 
-			eventRequestsList.add(createCredReqDto(uin, partnerId, expiryTimestamp, null, token, saltAttributes, requestId));
-		}
-
-		// 2. VID Log
 		if (vidInfoDtos != null) {
-			for (VidInfoDTO vidDto : vidInfoDtos) {
-				for (String partnerId : partnerIds) {
+			mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getCanonicalName(), "sendUinEventsToCredService",
+					"Processing " + vidInfoDtos.size() + " VIDs");
+			List<CredentialIssueRequestDto> vidRequests = vidInfoDtos.stream().flatMap(vidInfoDTO -> {
+				LocalDateTime vidExpiryTime = Objects.isNull(expiryTimestamp) ? vidInfoDTO.getExpiryTimestamp() : expiryTimestamp;
+				return partnerIds.stream().map(partnerId -> {
 					mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getCanonicalName(), "sendUinEventsToCredService",
-							" [DEBUG-IDA] VID Request -> Partner: " + partnerId + ", VID: " + vidDto.getVid() + ", HasHashAttrs: " + (vidDto.getHashAttributes() != null));
-
+							"Preparing VID event for VID: " + vidInfoDTO.getVid() + ", Partner: " + partnerId);
 					String token = tokenIDGenerator.generateTokenID(uin, partnerId);
-					LocalDateTime vidExpiryTime = Objects.isNull(expiryTimestamp) ? vidDto.getExpiryTimestamp() : expiryTimestamp;
-					eventRequestsList.add(createCredReqDto(vidDto.getVid(), partnerId, vidExpiryTime, vidDto.getTransactionLimit(),
-							token, vidDto.getHashAttributes()));
-				}
-			}
+					return createCredReqDto(vidInfoDTO.getVid(), partnerId, vidExpiryTime, vidInfoDTO.getTransactionLimit(),
+							token, vidInfoDTO.getHashAttributes());
+				});
+			}).collect(Collectors.toList());
+			eventRequestsList.addAll(vidRequests);
 		}
 
-		// 3. HANDLE Log (Critical for your IDA-MLC-018 error)
-		if (handleList != null && !handleList.isEmpty()) {
-			for (HandleInfoDTO handleDto : handleList) {
-				for (String partnerId : partnerIds) {
+		if(handleList != null && !handleList.isEmpty()) {
+			mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getCanonicalName(), "sendUinEventsToCredService",
+					"Processing " + handleList.size() + " Handles for " + partnerIds.size() + " partners");
+			mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getCanonicalName(), "sendUinEventsToCredService",
+					"Number of handles identified >> " + handleList.size());
+			List<CredentialIssueRequestDto> handleRequests = handleList.stream().flatMap(handleInfoDTO -> {
+				return partnerIds.stream().map(partnerId -> {
 					String token = tokenIDGenerator.generateTokenID(uin, partnerId);
-
-					// Safe concatenation for RequestId
-					String safeReqId = (requestId == null) ? "" : requestId;
-					String handleValue = handleDto.getHandle();
-					String combinedIdForHash = safeReqId.concat(handleValue != null ? handleValue : "");
-					String hashedHandleRequestId = securityManager.hash(combinedIdForHash.getBytes(StandardCharsets.UTF_8));
-
+					//Given requestId and the handle value is hashed together to generate a unique requestId for handle credential.
+					//Credential issuance status check systems should generate the handle requestId in the same way to get latest issuance status.
+					String handleRequestId = requestId.concat(handleInfoDTO.getHandle());
+					String hashedHandleRequestId = securityManager.hash(handleRequestId.getBytes(StandardCharsets.UTF_8));
 					mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getCanonicalName(), "sendUinEventsToCredService",
-							String.format(" [DEBUG-IDA] HANDLE -> Partner: %s, Handle: %s, HashedReqId: %s, HasSaltData: %b",
-									partnerId, handleValue, hashedHandleRequestId, (handleDto.getAdditionalData() != null)));
-
-					eventRequestsList.add(createCredReqDto(handleValue, partnerId, null, null,
-							token, handleDto.getAdditionalData(), hashedHandleRequestId));
-				}
-			}
+							String.format("Preparing Handle event - Handle: %s, Partner: %s, RawHandleReqId: %s, HashedHandleReqId: %s",
+									handleInfoDTO.getHandle(), partnerId, handleRequestId, hashedHandleRequestId));
+					return createCredReqDto(handleInfoDTO.getHandle(), partnerId, null, null,
+							token, handleInfoDTO.getAdditionalData(),
+							securityManager.hash(handleRequestId.getBytes(StandardCharsets.UTF_8)));
+				});
+			}).collect(Collectors.toList());
+			eventRequestsList.addAll(handleRequests);
 		}
-
+		mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getCanonicalName(), "sendUinEventsToCredService",
+				"Total credential events prepared to send: " + eventRequestsList.size());
 		sendRequestToCredService(eventRequestsList, isUpdate, credentialRequestResponseConsumer);
 	}
 
