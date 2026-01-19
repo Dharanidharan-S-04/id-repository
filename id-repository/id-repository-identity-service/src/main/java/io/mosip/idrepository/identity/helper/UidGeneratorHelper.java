@@ -72,7 +72,7 @@ public class UidGeneratorHelper {
         // Step 4: Calculate checksum digit
         // Formula: ((sum % 10) - 10) * -1
         int sum = Arrays.stream(processedDigits).sum();
-        int checkSumDigit = ((sum % 10) - 10) * -1;
+        int checkSumDigit = (10 - (sum % 10)) % 10;
 
         // Step 5: Append checksum digit to create final 10-digit UID
         return randomNumberStr + checkSumDigit;
