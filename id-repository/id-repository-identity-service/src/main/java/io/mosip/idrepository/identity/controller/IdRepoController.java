@@ -78,6 +78,10 @@ public class IdRepoController {
 
 	private static final String GET_UIN = "getUin";
 
+	private static final String GET_UID = "getUid";
+
+	private static final String UID= "UID";
+
 	private static final String ID_TYPE = "idType";
 
 	/** The Constant RETRIEVE_IDENTITY. */
