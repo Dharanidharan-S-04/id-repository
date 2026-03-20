@@ -39,6 +39,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.JsonPathException;
+import com.jayway.jsonpath.PathNotFoundException
 
 import io.mosip.idrepository.core.constant.AuditEvents;
 import io.mosip.idrepository.core.constant.AuditModules;
@@ -445,7 +446,39 @@ public class IdRepoController {
 		try {
 			String identity = mapper.writeValueAsString(request);
 			JsonPath jsonPath = JsonPath.compile(pathOfUin);
-			uin = jsonPath.read(identity);
+			// uin = jsonPath.read(identity);
+			try {
+				uin = jsonPath.read(identity);
+			} catch (PathNotFoundException e) {
+				mosipLogger.warn(IdRepoSecurityManager.getUser(), ID_REPO_CONTROLLER, GET_UIN,
+						"UIN not found in the request, attempting to extract UID.");
+			}
+			if (uin == null || ((String) uin).isEmpty()) {
+				String uid = extractAndValidateUid(request);
+				// Retrieve UIN using UID
+				IdResponseDTO uinObj = idRepoService.retrieveIdentity(uid, IdType.HANDLE, UPDATE, null);
+				if (uinObj != null && uinObj.getResponse().getIdentity() != null) {
+					// Extract UIN from the retrieved identity
+					String identityJson = mapper.writeValueAsString(uinObj.getResponse().getIdentity()); 
+					try {
+						uin = JsonPath.read(identityJson, "$.UIN");
+						if (uin == null || ((String) uin).isEmpty()) {
+							throw new IdRepoAppException(MISSING_INPUT_PARAMETER.getErrorCode(),
+									"Extracted UIN is empty or null.");
+						}
+					} catch (PathNotFoundException e) {
+						mosipLogger.error(IdRepoSecurityManager.getUser(), ID_REPO_CONTROLLER, "FETCH_UIN",
+								"No UIN field found in the retrieved identity.");
+						throw new IdRepoAppException(MISSING_INPUT_PARAMETER.getErrorCode(),
+								"No matching UIN found for the provided NIN");
+					}
+				} else {
+					mosipLogger.error(IdRepoSecurityManager.getUser(), ID_REPO_CONTROLLER, "FETCH_UIN",
+							"No matching UIN found for the provided UID");
+					throw new IdRepoAppException(MISSING_INPUT_PARAMETER.getErrorCode(),
+							"No matching UIN found for the provided UID");
+				}
+			}
 			return String.valueOf(uin);
 		} catch (JsonProcessingException e) {
 			mosipLogger.error(IdRepoSecurityManager.getUser(), ID_REPO_CONTROLLER, GET_UIN, e.getMessage());
@@ -464,4 +497,38 @@ public class IdRepoController {
 			return IdType.VID;
 		return IdType.ID;
 	}
+
+	private String extractAndValidateUid(Object request) throws IdRepoAppException {			
+				if (Objects.isNull(request)) {
+			        mosipLogger.error(IdRepoSecurityManager.getUser(), ID_REPO_CONTROLLER, GET_UID, "request is null");
+			        throw new IdRepoAppException(MISSING_INPUT_PARAMETER.getErrorCode(),
+			                String.format(MISSING_INPUT_PARAMETER.getErrorMessage(), "request"));
+			    }
+				Object uid = null;
+			    String pathOfUid = EnvUtil.getUidJsonPath();
+			    try {
+		        	String identity = mapper.writeValueAsString(request);
+		        	JsonPath jsonPath = JsonPath.compile(pathOfUid);
+			        try {
+			        	uid = jsonPath.read(identity);
+			        } catch (PathNotFoundException e) {
+			            mosipLogger.warn(IdRepoSecurityManager.getUser(), ID_REPO_CONTROLLER, GET_UID, 
+			                "UID not found in the request, attempting to extract UID.");
+			        }
+			    if (!validator.validateUid(uid)) {
+			        mosipLogger.error(IdRepoSecurityManager.getUser(), ID_REPO_CONTROLLER, "VALIDATE_UID", "Invalid UID provided");
+			        throw new IdRepoAppException(INVALID_INPUT_PARAMETER.getErrorCode(),
+			                String.format(INVALID_INPUT_PARAMETER.getErrorMessage(), UID));
+			    }
+			    return String.valueOf(uid).toLowerCase() + "@uid";
+		        } catch (JsonProcessingException e) {
+			        mosipLogger.error(IdRepoSecurityManager.getUser(), ID_REPO_CONTROLLER, e.getMessage());
+			        throw new IdRepoAppException(INVALID_REQUEST, e);
+			    } catch (JsonPathException e) {
+			        mosipLogger.error(IdRepoSecurityManager.getUser(), ID_REPO_CONTROLLER, e.getMessage());
+			        throw new IdRepoAppException(MISSING_INPUT_PARAMETER.getErrorCode(),
+			                String.format(MISSING_INPUT_PARAMETER.getErrorMessage(), pathOfUid.replace(".", "/")));
+			    }
+		        } 	
+	
 }
