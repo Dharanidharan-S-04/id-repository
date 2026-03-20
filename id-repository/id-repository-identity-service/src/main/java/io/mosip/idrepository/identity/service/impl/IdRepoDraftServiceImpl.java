@@ -299,6 +299,9 @@ public class IdRepoDraftServiceImpl extends IdRepoServiceImpl implements IdRepoD
 
 			/* Update request object */
 			ObjectNode identityObject = mapper.convertValue(requestDTO.getIdentity(), ObjectNode.class);
+			ObjectNode existingIdentity = convertToObject(draftToUpdate.getUinData(), ObjectNode.class);
+			ObjectNode incomingIdentity = mapper.convertValue(request.getRequest().getIdentity(), ObjectNode.class);
+
 
 			// Check if UID generation is needed
 			if (!identityObject.has(UID) || identityObject.get(UID).isNull() || StringUtils.isEmpty(identityObject.get(UID).asText())) {
@@ -336,7 +339,9 @@ public class IdRepoDraftServiceImpl extends IdRepoServiceImpl implements IdRepoD
 			if (comparisonResult.failed()) {
 				super.updateJsonObject(inputData, dbData, comparisonResult);
 			}
-			draftToUpdate.setUinData(convertToBytes(convertToObject(dbData.jsonString().getBytes(), Map.class)));
+			JsonNode mergedIdentity = mergeJson(existingIdentity, incomingIdentity);
+			draftToUpdate.setUinData(convertToBytes(mergedIdentity));
+			// draftToUpdate.setUinData(convertToBytes(convertToObject(dbData.jsonString().getBytes(), Map.class)));
 			draftToUpdate.setUinDataHash(securityManager.hash(draftToUpdate.getUinData()));
 			draftToUpdate.setUpdatedBy(IdRepoSecurityManager.getUser());
 			draftToUpdate.setUpdatedDateTime(DateUtils.getUTCCurrentDateTime());
@@ -641,4 +646,19 @@ public class IdRepoDraftServiceImpl extends IdRepoServiceImpl implements IdRepoD
 			idResponse.setMetadata(Map.of("vid", vid));
 		return idResponse;
 	}
+
+	private JsonNode mergeJson(JsonNode existing, JsonNode update) {
+    Iterator<String> fieldNames = update.fieldNames();
+    while (fieldNames.hasNext()) {
+        String fieldName = fieldNames.next();
+        JsonNode value = update.get(fieldName);
+
+        if (value.isObject() && existing.has(fieldName)) {
+            mergeJson(existing.get(fieldName), value);
+        } else {
+            ((ObjectNode) existing).set(fieldName, value);
+        }
+    }
+    return existing;
+}
 }
