@@ -490,7 +490,7 @@ public class IdRequestValidator extends BaseIdRepoValidator implements Validator
 
 	public boolean validateUid(Object uid) throws IdRepoAppException {
 		try {
-			return ninValidator.validateUid(uid);
+			return uidValidator.validateUid(uid);
 		} catch (InvalidIDException e) {
 			return false;
 		}
