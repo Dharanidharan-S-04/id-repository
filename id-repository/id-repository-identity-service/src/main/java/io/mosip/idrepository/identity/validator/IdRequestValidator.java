@@ -131,6 +131,9 @@ public class IdRequestValidator extends BaseIdRepoValidator implements Validator
 	@Autowired
 	private IdRepoServiceHelper idRepoServiceHelper;
 
+	@Autowired
+	private UidValidator uidValidator;
+
 
 	@PostConstruct
 	public void init() {
@@ -483,5 +486,13 @@ public class IdRequestValidator extends BaseIdRepoValidator implements Validator
 			}
 		}
 		return null;
+	}
+
+	public boolean validateUid(Object uid) throws IdRepoAppException {
+		try {
+			return ninValidator.validateUid(uid);
+		} catch (InvalidIDException e) {
+			return false;
+		}
 	}
 }
