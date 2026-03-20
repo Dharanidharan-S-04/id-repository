@@ -240,6 +240,13 @@ public class IdRepoDraftServiceImpl extends IdRepoServiceImpl implements IdRepoD
 					
 					ObjectNode identityObject1 = mapper.convertValue(request.getRequest().getIdentity(), ObjectNode.class);
 
+					idrepoDraftLogger.info(
+					    IdRepoSecurityManager.getUser(),
+					    ID_REPO_DRAFT_SERVICE_IMPL,
+					    UPDATE_DRAFT,
+					    "Incoming identity: ***** " + identityObject1.toString()
+					);
+
 					// Check if UID already exists
 					if (!identityObject1.has(UID) || identityObject1.get(UID).isNull() || StringUtils.isEmpty(identityObject1.get(UID).asText())) {
 						// Check if UID generation is needed
