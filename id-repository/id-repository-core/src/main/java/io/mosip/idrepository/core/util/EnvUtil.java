@@ -103,6 +103,7 @@ public class EnvUtil {
 	@Getter @Setter private static Integer activeAsyncThreadCount;
 	@Getter @Setter private static String monitorAsyncThreadQueue;
 	@Getter @Setter private static Integer asyncThreadQueueThreshold;
+	@Getter @Setter private static String uidJsonPath;
 
 	public String getProperty(String key) {
 		return env.getProperty(key);
