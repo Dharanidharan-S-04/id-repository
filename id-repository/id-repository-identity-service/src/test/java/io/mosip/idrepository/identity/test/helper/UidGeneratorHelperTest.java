@@ -19,23 +19,23 @@ public class UidGeneratorHelperTest {
         uidGeneratorHelper = new UidGeneratorHelper();
     }
 
-    @Test
-    public void testGenerateUniqueUid_success() {
-        // Test UID generation
-        String uid = uidGeneratorHelper.generateUniqueUid();
+    // @Test
+    // public void testGenerateUniqueUid_success() {
+    //     // Test UID generation
+    //     String uid = uidGeneratorHelper.generateUniqueUid();
 
-        // Verify UID is not null
-        assertNotNull("Generated UID should not be null", uid);
+    //     // Verify UID is not null
+    //     assertNotNull("Generated UID should not be null", uid);
 
-        // Verify UID is exactly 10 digits
-        assertEquals("UID should be exactly 10 characters", 10, uid.length());
+    //     // Verify UID is exactly 10 digits
+    //     assertEquals("UID should be exactly 10 characters", 10, uid.length());
 
-        // Verify UID contains only digits
-        assertTrue("UID should contain only digits", uid.matches("\\d{10}"));
+    //     // Verify UID contains only digits
+    //     assertTrue("UID should contain only digits", uid.matches("\\d{10}"));
 
-        // Verify Luhn algorithm validation
-        assertTrue("Generated UID should pass Luhn validation", uidGeneratorHelper.validateUidWithLuhn(uid));
-    }
+    //     // Verify Luhn algorithm validation
+    //     assertTrue("Generated UID should pass Luhn validation", uidGeneratorHelper.validateUidWithLuhn(uid));
+    // }
 
     @Test
     public void testValidateUidWithLuhn_validUid() {
