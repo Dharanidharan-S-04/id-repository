@@ -188,6 +188,7 @@ public class EnvUtil {
 		setActiveAsyncThreadCount(this.getProperty("mosip.idrepo.active-async-thread-count", Integer.class));
 		setMonitorAsyncThreadQueue(this.getProperty("mosip.idrepo.monitor-thread-queue-in-ms"));
 		setAsyncThreadQueueThreshold(this.getProperty("mosip.idrepo.max-thread-queue-threshold", Integer.class, 0));
+		setUidJsonPath("identity.UID");
 	}
 
 	private void initCredentialRequestGeneratorServiceProperties() {
