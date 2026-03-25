@@ -50,6 +50,15 @@ public class IdrepositaryUtil {
 			Map<String, String> bioAttributeFormatterMap)
 			throws ApiNotAccessibleException, IdRepoException, JsonParseException, JsonMappingException, IOException {
 		String requestId=credentialServiceRequestDto.getRequestId();
+		 try {
+        String dtoAsJson = mapper.writeValueAsString(credentialServiceRequestDto);
+        LOGGER.info(IdRepoSecurityManager.getUser(), LoggerFileConstant.REQUEST_ID.toString(), requestId,
+                "Processing getData. RequestId: " + requestId + " | Full DTO: " + dtoAsJson);
+	    } catch (Exception e) {
+	        // Fallback if JSON mapping fails
+	        LOGGER.info(IdRepoSecurityManager.getUser(), LoggerFileConstant.REQUEST_ID.toString(), requestId,
+	                "Processing getData. RequestId: " + requestId + " | DTO (toString): " + credentialServiceRequestDto.toString());
+	    }
 		try {
 			LOGGER.debug(IdRepoSecurityManager.getUser(), LoggerFileConstant.REQUEST_ID.toString(),
 					requestId, "Id repository get data entry");
@@ -57,6 +66,8 @@ public class IdrepositaryUtil {
 			Map<String, Object> map = credentialServiceRequestDto.getAdditionalData();
 			String idType = null;
 			idType = (String) map.get("idType");
+			LOGGER.info(IdRepoSecurityManager.getUser(), LoggerFileConstant.REQUEST_ID.toString(), requestId,
+                "DEBUG_LOG: Extracted idType is [" + idType + "]");
 
 			String fingerExtractionFormat = bioAttributeFormatterMap.get(CredentialConstants.FINGER);
 			String faceExtractionFormat = bioAttributeFormatterMap.get(CredentialConstants.FACE);
