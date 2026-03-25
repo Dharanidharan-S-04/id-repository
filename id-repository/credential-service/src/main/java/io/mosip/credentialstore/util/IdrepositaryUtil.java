@@ -77,6 +77,9 @@ public class IdrepositaryUtil {
 			pathsegments.add(credentialServiceRequestDto.getId());
 			String queryParamName = "type";
 			String queryParamValue = identityType;
+			if(id.contains("@uid")){
+				idType="handle";
+			}
 			if (StringUtils.isNotEmpty(idType)) {
 				queryParamName = queryParamName + ",idType";
 				queryParamValue = queryParamValue + "," + idType;
@@ -96,13 +99,13 @@ public class IdrepositaryUtil {
 			
 			LOGGER.debug(String.format("getIdentity query param names:%s - query param values: %s", queryParamName, queryParamValue));
 
-			if(id.contains("@uid")){
-				LOGGER.info(IdRepoSecurityManager.getUser(), LoggerFileConstant.REQUEST_ID.toString(), requestId,
-                        "DEBUG_LOG: ID contains @uid. Updating idType to handle and type to handle.");
-				idType="handle";
-				queryParamName="type";
-				queryParamValue="handle";
-			}
+			// if(id.contains("@uid")){
+			// 	LOGGER.info(IdRepoSecurityManager.getUser(), LoggerFileConstant.REQUEST_ID.toString(), requestId,
+   //                      "DEBUG_LOG: ID contains @uid. Updating idType to handle and type to handle.");
+			// 	idType="handle";
+			// 	queryParamName="type";
+			// 	queryParamValue="handle";
+			// }
 			// --- LOG THE CALL ---
             LOGGER.info(IdRepoSecurityManager.getUser(), LoggerFileConstant.REQUEST_ID.toString(), requestId,
                     "IDREPO_API_REQUEST: Calling " + ApiName.IDREPOGETIDBYID + " with Path: " + pathsegments + 
