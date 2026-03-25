@@ -50,7 +50,8 @@ public class IdrepositaryUtil {
 			Map<String, String> bioAttributeFormatterMap)
 			throws ApiNotAccessibleException, IdRepoException, JsonParseException, JsonMappingException, IOException {
 		String requestId=credentialServiceRequestDto.getRequestId();
-		 try {
+		String id = credentialServiceRequestDto.getId();
+		try {
         String dtoAsJson = mapper.writeValueAsString(credentialServiceRequestDto);
         LOGGER.info(IdRepoSecurityManager.getUser(), LoggerFileConstant.REQUEST_ID.toString(), requestId,
                 "Processing getData. RequestId: " + requestId + " | Full DTO: " + dtoAsJson);
@@ -95,6 +96,14 @@ public class IdrepositaryUtil {
 			
 			LOGGER.debug(String.format("getIdentity query param names:%s - query param values: %s", queryParamName, queryParamValue));
 
+			if(id.contains("@uid")){
+				LOGGER.info(IdRepoSecurityManager.getUser(), LoggerFileConstant.REQUEST_ID.toString(), requestId,
+                        "DEBUG_LOG: ID contains @uid. Updating idType to handle and type to handle.");
+				idType="handle";
+				queryParamName="type";
+				queryParamValue="handle";
+			}
+			
 			String responseString = restUtil.getApi(ApiName.IDREPOGETIDBYID, pathsegments, queryParamName,
 					queryParamValue, String.class);
 			IdResponseDTO responseObject = mapper.readValue(responseString, IdResponseDTO.class);
