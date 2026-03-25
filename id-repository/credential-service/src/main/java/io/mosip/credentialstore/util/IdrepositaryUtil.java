@@ -103,9 +103,19 @@ public class IdrepositaryUtil {
 				queryParamName="type";
 				queryParamValue="handle";
 			}
+			// --- LOG THE CALL ---
+            LOGGER.info(IdRepoSecurityManager.getUser(), LoggerFileConstant.REQUEST_ID.toString(), requestId,
+                    "IDREPO_API_REQUEST: Calling " + ApiName.IDREPOGETIDBYID + " with Path: " + pathsegments + 
+                    " and Params: " + queryParamName + "=" + queryParamValue);
 			
 			String responseString = restUtil.getApi(ApiName.IDREPOGETIDBYID, pathsegments, queryParamName,
 					queryParamValue, String.class);
+			
+			// --- LOG THE RESULT ---
+            LOGGER.info(IdRepoSecurityManager.getUser(), LoggerFileConstant.REQUEST_ID.toString(), requestId,
+                    "IDREPO_API_RESPONSE: " + responseString);
+
+            IdResponseDTO responseObject = mapper.readValue(responseString, IdResponseDTO.class);
 			IdResponseDTO responseObject = mapper.readValue(responseString, IdResponseDTO.class);
 			if (responseObject == null) {
 				LOGGER.error(IdRepoSecurityManager.getUser(), LoggerFileConstant.REQUEST_ID.toString(), requestId,
